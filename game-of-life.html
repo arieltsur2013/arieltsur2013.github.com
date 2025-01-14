@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conway's Game of Life</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #202020;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid white;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            background-color: #444;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #666;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div>
+        <button id="startButton">Start Simulation</button>
+        <button id="stepButton">Next Generation</button>
+        <button id="backButton">Previous Generation</button>
+        <button id="resetButton">Reset Grid</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const resetButton = document.getElementById('resetButton');
+        const stepButton = document.getElementById('stepButton');
+        const backButton = document.getElementById('backButton');
+
+        // Grid dimensions
+        const rows = 100;
+        const cols = 100;
+        const cellSize = 10;
+
+        canvas.width = cols * cellSize;
+        canvas.height = rows * cellSize;
+
+        // Initialize grid
+        let grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+        let history = [];
+        let isRunning = false;
+        let isMouseDown = false;
+
+        // Draw the grid
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    ctx.strokeStyle = '#333';
+                    ctx.strokeRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                    if (grid[row][col] === 1) {
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+        }
+
+        // Get the number of live neighbors
+        function countNeighbors(grid, x, y) {
+            let count = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (i === 0 && j === 0) continue;
+                    const row = x + i;
+                    const col = y + j;
+                    if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                        count += grid[row][col];
+                    }
+                }
+            }
+            return count;
+        }
+
+        // Update the grid for the next generation
+        function updateGrid() {
+            const newGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const neighbors = countNeighbors(grid, row, col);
+                    if (grid[row][col] === 1 && (neighbors === 2 || neighbors === 3)) {
+                        newGrid[row][col] = 1;
+                    } else if (grid[row][col] === 0 && neighbors === 3) {
+                        newGrid[row][col] = 1;
+                    }
+                }
+            }
+            return newGrid;
+        }
+
+        // Handle mouse events to draw
+        canvas.addEventListener('mousedown', () => {
+            isMouseDown = true;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (isMouseDown) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const col = Math.floor(x / cellSize);
+                const row = Math.floor(y / cellSize);
+                if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                    grid[row][col] = 1;
+                }
+                drawGrid();
+            }
+        });
+
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const col = Math.floor(x / cellSize);
+            const row = Math.floor(y / cellSize);
+            if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                grid[row][col] = grid[row][col] === 1 ? 0 : 1;
+                drawGrid();
+            }
+        });
+
+        // Main loop
+        async function gameLoop() {
+            while (isRunning) {
+                history.push(grid.map(row => row.slice()));
+                drawGrid();
+                grid = updateGrid();
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        // Start/Stop simulation
+        startButton.addEventListener('click', () => {
+            isRunning = !isRunning;
+            startButton.textContent = isRunning ? 'Stop Simulation' : 'Start Simulation';
+            if (isRunning) gameLoop();
+        });
+
+        // Step simulation
+        stepButton.addEventListener('click', () => {
+            if (!isRunning) {
+                history.push(grid.map(row => row.slice()));
+                grid = updateGrid();
+                drawGrid();
+            }
+        });
+
+        // Go back one generation
+        backButton.addEventListener('click', () => {
+            if (!isRunning && history.length > 0) {
+                grid = history.pop();
+                drawGrid();
+            }
+        });
+
+        // Reset grid
+        resetButton.addEventListener('click', () => {
+            isRunning = false;
+            startButton.textContent = 'Start Simulation';
+            grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+            history = [];
+            drawGrid();
+        });
+
+        // Initial draw
+        drawGrid();
+    </script>
+</body>
+</html>
